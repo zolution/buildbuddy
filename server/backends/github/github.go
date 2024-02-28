@@ -167,6 +167,7 @@ func legacyClientSecret() string {
 
 func IsLegacyOAuthAppEnabled() bool {
 	if *clientID == "" || legacyClientSecret() == "" {
+		log.Warningf("Client ID is %s, secret is %s", *clientID, legacyClientSecret())
 		return false
 	}
 	return true

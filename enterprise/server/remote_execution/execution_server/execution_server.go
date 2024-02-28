@@ -703,6 +703,7 @@ func (s *ExecutionServer) execute(req *repb.ExecuteRequest, stream streamLike) e
 	// can wait on.
 	if executionID == "" {
 		log.CtxInfof(ctx, "Scheduling new execution for %q for invocation %q", downloadString, invocationID)
+		ctx, _ = context.WithTimeout(ctx, 5*time.Minute)
 		newExecutionID, err := s.Dispatch(ctx, req)
 		if err != nil {
 			log.CtxWarningf(ctx, "Error dispatching execution for %q: %s", downloadString, err)

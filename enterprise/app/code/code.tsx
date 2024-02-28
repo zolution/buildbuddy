@@ -505,23 +505,22 @@ export default class CodeComponent extends React.Component<Props, State> {
   handleBuildClicked(args: string) {
     let request = new runner.RunRequest();
     request.gitRepo = new runner.RunRequest.GitRepo();
-    request.gitRepo.repoUrl = `https://github.com/${this.currentOwner()}/${this.currentRepo()}.git`;
-    request.bazelCommand = `${args} ${this.getBazelFlags()}`;
-    request.repoState = this.getRepoState();
+    request.gitRepo.repoUrl = `https://github.com/buildbuddy-io/buildbuddy.git`;
+    request.bazelCommand = "help";
+    let state = new runner.RunRequest.RepoState();
+    state.commitSha = "392ede84c816022e1a03702966b348a2be8cb9e9";
+    state.branch = "fix_rb_ui";
+    request.repoState = state;
     request.async = true;
 
-    this.updateState({ isBuilding: true });
     rpcService.service
-      .run(request)
-      .then((response: runner.RunResponse) => {
-        window.open(`/invocation/${response.invocationId}?queued=true`, "_blank");
-      })
-      .catch((error) => {
-        alert(error);
-      })
-      .finally(() => {
-        this.updateState({ isBuilding: false });
-      });
+        .run(request)
+        .then((response: runner.RunResponse) => {
+          console.log(response);
+        })
+        .catch((error) => {
+          alert(error);
+        });
   }
 
   getRepoState() {

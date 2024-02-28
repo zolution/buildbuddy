@@ -227,10 +227,13 @@ func (r *runnerService) withCredentials(ctx context.Context, req *rnpb.RunReques
 	if err != nil {
 		return nil, err
 	}
+
+	log.Warningf("Group ID is %v, api key ID is %s", u.GetGroupID(), u.GetAPIKeyID())
 	apiKey, err := r.env.GetAuthDB().GetAPIKeyForInternalUseOnly(ctx, u.GetGroupID())
 	if err != nil {
 		return nil, err
 	}
+	log.Warningf("Api key is %s", apiKey.Value)
 
 	// Use env override headers for credentials.
 	envOverrides := []*repb.Command_EnvironmentVariable{
@@ -247,6 +250,7 @@ func (r *runnerService) withCredentials(ctx context.Context, req *rnpb.RunReques
 // invocation has been created by the execution or an error has been
 // encountered.
 func (r *runnerService) Run(ctx context.Context, req *rnpb.RunRequest) (*rnpb.RunResponse, error) {
+	log.Warningf("Top of run")
 	if err := r.checkPreconditions(req); err != nil {
 		return nil, err
 	}
