@@ -1,4 +1,8 @@
 actions:
+  - name: Maggie
+    container_image: ubuntu-20.04
+    bazel_commands:
+      - build //enterprise/server/util/...
   - name: Test
     container_image: ubuntu-20.04
     triggers:
