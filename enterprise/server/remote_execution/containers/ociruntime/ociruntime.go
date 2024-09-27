@@ -10,7 +10,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1208,6 +1207,29 @@ func downloadLayer(ctx context.Context, layer ctr.Layer, destDir string) error {
 		}
 
 		target := filepath.Join(tempUnpackDir, header.Name)
+		base := filepath.Base(target)
+		dir := filepath.Dir(target)
+
+		const whiteoutPrefix = ".wh."
+		// Handle whiteout
+		if strings.HasPrefix(base, whiteoutPrefix) {
+			// Directory whiteout
+			if base == whiteoutPrefix+whiteoutPrefix+".opq" {
+				if err := unix.Setxattr(dir, "trusted.overlay.opaque", []byte{'y'}, 0); err != nil {
+					return fmt.Errorf("setxattr on deleted dir: %w", err)
+				}
+				continue
+			}
+
+			// File whiteout: Mark the file for deletion in overlayfs.
+			originalBase := base[len(whiteoutPrefix):]
+			originalPath := filepath.Join(dir, originalBase)
+			if err := unix.Mknod(originalPath, unix.S_IFCHR, 0); err != nil {
+				return fmt.Errorf("mknod for whiteout marker: %w", err)
+			}
+			continue
+		}
+
 		switch header.Typeflag {
 		case tar.TypeDir:
 			if err := os.MkdirAll(target, os.FileMode(header.Mode)); err != nil {
@@ -1234,50 +1256,6 @@ func downloadLayer(ctx context.Context, layer ctr.Layer, destDir string) error {
 		default:
 			return status.UnavailableErrorf("unsupported tar entry type %q", header.Typeflag)
 		}
-	}
-
-	// Convert whiteout files to overlayfs format.
-	err = filepath.WalkDir(tempUnpackDir, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if !entry.Type().IsRegular() {
-			return nil
-		}
-
-		base := filepath.Base(path)
-		dir := filepath.Dir(path)
-		const whiteoutPrefix = ".wh."
-
-		// Directory whiteouts
-		if base == whiteoutPrefix+whiteoutPrefix+".opq" {
-			if err := unix.Setxattr(dir, "trusted.overlay.opaque", []byte{'y'}, 0); err != nil {
-				return fmt.Errorf("setxattr on deleted dir: %w", err)
-			}
-			if err := os.Remove(path); err != nil {
-				return fmt.Errorf("remove directory whiteout marker: %w", err)
-			}
-			return nil
-		}
-
-		// File whiteouts
-		if strings.HasPrefix(base, whiteoutPrefix) {
-			originalBase := base[len(whiteoutPrefix):]
-			originalPath := filepath.Join(dir, originalBase)
-			if err := unix.Mknod(originalPath, unix.S_IFCHR, 0); err != nil {
-				return fmt.Errorf("mknod for whiteout marker: %w", err)
-			}
-			if err := os.Remove(path); err != nil {
-				return fmt.Errorf("remove directory whiteout marker: %w", err)
-			}
-			return nil
-		}
-
-		return nil
-	})
-	if err != nil {
-		return status.UnavailableErrorf("walk layer dir: %s", err)
 	}
 
 	if err := os.Rename(tempUnpackDir, destDir); err != nil {
