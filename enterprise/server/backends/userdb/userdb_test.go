@@ -908,9 +908,7 @@ func TestDeleteAPIKey(t *testing.T) {
 	require.NoError(t, err, "create a US3-owned key in org1")
 
 	err = adb.DeleteAPIKey(ctx1, uk3.APIKeyID)
-	require.True(
-		t, status.IsPermissionDeniedError(err),
-		"US1 should not be able to delete US3's key. Expected permission denied, got: %s", err)
+	require.NoError(t, err, "US1 should be able to delete US3's key in org1")
 }
 
 func TestUserOwnedKeys_GetUpdateDeletePermissions(t *testing.T) {
@@ -983,7 +981,6 @@ func TestUserOwnedKeys_GetUpdateDeletePermissions(t *testing.T) {
 			keys, err := adb.GetUserAPIKeys(accessorCtx, test.Owner, ownerGroup.GroupID)
 			// Only the owner and group's admin should be able to view or update the API key.
 			isAuthorized := test.Owner == test.Accessor || test.Accessor == groupAdminID
-			isUpdateDeleteAuthorized := test.Owner == test.Accessor
 			if isAuthorized {
 				require.NoError(t, err)
 				hasKey := false
@@ -1012,7 +1009,7 @@ func TestUserOwnedKeys_GetUpdateDeletePermissions(t *testing.T) {
 			updates := *ownerKey // copy
 			updates.Label = "Updated label"
 			err = adb.UpdateAPIKey(accessorCtx, &updates)
-			if isUpdateDeleteAuthorized {
+			if isAuthorized {
 				require.NoError(t, err)
 			} else {
 				require.Truef(
@@ -1025,7 +1022,7 @@ func TestUserOwnedKeys_GetUpdateDeletePermissions(t *testing.T) {
 			// Try to delete the owner's key as the accessor.
 
 			err = adb.DeleteAPIKey(accessorCtx, ownerKey.APIKeyID)
-			if isUpdateDeleteAuthorized {
+			if isAuthorized {
 				require.NoError(t, err)
 			} else {
 				require.Truef(

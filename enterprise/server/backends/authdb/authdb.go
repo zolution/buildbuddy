@@ -967,15 +967,18 @@ func (d *AuthDB) authorizeAPIKeyWrite(ctx context.Context, h interfaces.DB, apiK
 	if err != nil {
 		return nil, err
 	}
+	err = authutil.AuthorizeOrgAdmin(user, key.GroupID)
+	if err == nil {
+		// admins have write permissions on all keys in the group.
+		return key, nil
+	}
+	if key.UserID == "" {
+		// Only group admins can write to group-level API keys.
+		return nil, err
+	}
 	acl := perms.ToACLProto(&uidpb.UserId{Id: key.UserID}, key.GroupID, key.Perms)
 	if err := perms.AuthorizeWrite(&user, acl); err != nil {
 		return nil, err
-	}
-	// Only group admins can write to group-level API keys.
-	if key.UserID == "" {
-		if err := d.authorizeGroupAdminRole(ctx, key.GroupID); err != nil {
-			return nil, err
-		}
 	}
 	return key, nil
 }
