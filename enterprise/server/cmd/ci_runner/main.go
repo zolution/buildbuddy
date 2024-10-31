@@ -166,8 +166,6 @@ var (
 	invocationID       = flag.String("invocation_id", "", "If set, use the specified invocation ID for the workflow action. Ignored if action_name is not set.")
 	visibility         = flag.String("visibility", "", "If set, use the specified value for VISIBILITY build metadata for the workflow invocation.")
 	// TODO(Maggie): Deprecate this flag when we clean up `BazelCommands`
-	bazelSubCommand = flag.String("bazel_sub_command", "", "If set, run the bazel command specified by these args and ignore all triggering and configured actions.")
-	// TODO(Maggie): Deprecate this flag when we clean up `BazelCommands`
 	recordRunMetadata = flag.Bool("record_run_metadata", false, "Instead of running a target, extract metadata about it and report it in the build event stream.")
 	timeout           = flag.Duration("timeout", 0, "Timeout before all commands will be canceled automatically.")
 
@@ -1460,9 +1458,6 @@ func getActionNameForWorkflowConfiguredEvent() (string, error) {
 		}
 		return a.Name, nil
 	}
-	if *bazelSubCommand != "" {
-		return "run", nil
-	}
 	if *actionName != "" {
 		return *actionName, nil
 	}
@@ -1473,14 +1468,6 @@ func getActionToRun() (*config.Action, error) {
 	if *serializedAction != "" {
 		return deserializeAction(*serializedAction)
 	}
-	if *bazelSubCommand != "" {
-		return &config.Action{
-			Name: "run",
-			DeprecatedBazelCommands: []string{
-				*bazelSubCommand,
-			},
-		}, nil
-	}
 	if *actionName != "" {
 		cfg, err := readConfig()
 		if err != nil {
@@ -1490,7 +1477,7 @@ func getActionToRun() (*config.Action, error) {
 		// actions with a matching action name.
 		return findAction(cfg.Actions, *actionName)
 	}
-	return nil, status.InvalidArgumentError("One of --action or --bazel_sub_command must be specified.")
+	return nil, status.InvalidArgumentError("an action to run must be specified")
 }
 
 func deserializeAction(actionString string) (*config.Action, error) {
