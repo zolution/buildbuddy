@@ -966,6 +966,13 @@ func TestUserOwnedKeys_GetUpdateDeletePermissions(t *testing.T) {
 				[]akpb.ApiKey_Capability{akpb.ApiKey_CAS_WRITE_CAPABILITY},
 			)
 			require.NoError(t, err)
+			var groupAdminID string
+			if ownerGroup.GroupID == gr1.GroupID {
+				groupAdminID = "US1"
+			}
+			if ownerGroup.GroupID == gr2.GroupID {
+				groupAdminID = "US3"
+			}
 
 			// Try to list keys for the owner, as the accessor.
 
@@ -973,10 +980,10 @@ func TestUserOwnedKeys_GetUpdateDeletePermissions(t *testing.T) {
 			if test.Accessor != "" {
 				accessorCtx = authUserCtx(accessorCtx, env, t, test.Accessor)
 			}
-			keys, err := adb.GetUserAPIKeys(accessorCtx, test.Accessor, ownerGroup.GroupID)
-			// Only the owner should be able to view or update the API key,
-			// regardless of role.
-			isAuthorized := test.Owner == test.Accessor
+			keys, err := adb.GetUserAPIKeys(accessorCtx, test.Owner, ownerGroup.GroupID)
+			// Only the owner and group's admin should be able to view or update the API key.
+			isAuthorized := test.Owner == test.Accessor || test.Accessor == groupAdminID
+			isUpdateDeleteAuthorized := test.Owner == test.Accessor
 			if isAuthorized {
 				require.NoError(t, err)
 				hasKey := false
@@ -1005,7 +1012,7 @@ func TestUserOwnedKeys_GetUpdateDeletePermissions(t *testing.T) {
 			updates := *ownerKey // copy
 			updates.Label = "Updated label"
 			err = adb.UpdateAPIKey(accessorCtx, &updates)
-			if isAuthorized {
+			if isUpdateDeleteAuthorized {
 				require.NoError(t, err)
 			} else {
 				require.Truef(
@@ -1018,7 +1025,7 @@ func TestUserOwnedKeys_GetUpdateDeletePermissions(t *testing.T) {
 			// Try to delete the owner's key as the accessor.
 
 			err = adb.DeleteAPIKey(accessorCtx, ownerKey.APIKeyID)
-			if isAuthorized {
+			if isUpdateDeleteAuthorized {
 				require.NoError(t, err)
 			} else {
 				require.Truef(
